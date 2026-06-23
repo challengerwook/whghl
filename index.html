@@ -7,24 +7,23 @@
     <script src="https://cdn.tailwindcss.com"></script>
 </head>
 <body class="bg-gray-100 p-5">
-    <!-- 로그인 화면 -->
+    <!-- 로그인 화면 (인증번호 제거) -->
     <div id="auth-screen" class="max-w-md mx-auto bg-white p-8 rounded-xl shadow-lg mt-10">
-        <h2 class="text-2xl font-bold mb-6 text-center">생활지도 대시보드 로그인</h2>
+        <h2 class="text-2xl font-bold mb-6 text-center">생활지도 대시보드</h2>
         <select id="class-select" class="w-full p-3 border mb-4 rounded">
             <option value="">학급을 선택하세요</option>
             <script>
                 for(let i=1; i<=13; i++) document.write(`<option value="${i}">${i}반</option>`);
             </script>
         </select>
-        <input type="password" id="auth-code" placeholder="인증번호 4자리" class="w-full p-3 border mb-4 rounded">
-        <button onclick="checkAuth()" class="w-full bg-blue-600 text-white p-3 rounded font-bold hover:bg-blue-700">로그인</button>
+        <button onclick="showDashboard()" class="w-full bg-blue-600 text-white p-3 rounded font-bold hover:bg-blue-700">조회하기</button>
     </div>
 
     <!-- 대시보드 화면 -->
     <div id="dashboard-screen" class="hidden max-w-4xl mx-auto">
         <div class="flex justify-between items-center mb-6">
             <h1 class="text-2xl font-bold" id="dashboard-title"></h1>
-            <button onclick="location.reload()" class="bg-gray-500 text-white px-4 py-2 rounded">로그아웃</button>
+            <button onclick="location.reload()" class="bg-gray-500 text-white px-4 py-2 rounded">나가기</button>
         </div>
 
         <!-- 탭 메뉴 -->
@@ -47,17 +46,15 @@
 
     <script>
         const API_URL = "https://script.google.com/macros/s/AKfycbyp73QiiXfUjiXxO7Elc3UzR9GHZ4eVQ6l7aivz5kUNOT8pqKcnWfbJBe69G_sL8qrZ/exec";
-        const authData = { "1":"8291", "2":"5634", "3":"9172", "4":"3048", "5":"2469", "6":"7715", "7":"1943", "8":"4720", "9":"1085", "10":"6394", "11":"7256", "12":"5103", "13":"3827" };
 
-        function checkAuth() {
+        function showDashboard() {
             const selected = document.getElementById("class-select").value;
-            const code = document.getElementById("auth-code").value;
-            if (authData[selected] === code) {
-                document.getElementById("auth-screen").classList.add("hidden");
-                document.getElementById("dashboard-screen").classList.remove("hidden");
-                document.getElementById("dashboard-title").innerText = selected + "반 생활지도 현황";
-                loadData(parseInt(selected));
-            } else { alert("인증번호가 틀렸습니다."); }
+            if (!selected) { alert("학급을 선택해주세요."); return; }
+            
+            document.getElementById("auth-screen").classList.add("hidden");
+            document.getElementById("dashboard-screen").classList.remove("hidden");
+            document.getElementById("dashboard-title").innerText = selected + "반 생활지도 현황";
+            loadData(parseInt(selected));
         }
 
         function showTab(tab) {
@@ -96,7 +93,7 @@
                     <div class="bg-purple-500 text-white p-4 rounded shadow">체크 인원: ${Object.values(students).filter(s=>s.체크>0).length}명</div>
                 `;
 
-                // 통계 탭: 상세 현황
+                // 통계 탭: 상세 현황 (누적 체크 순)
                 details.innerHTML = Object.values(students).filter(s => s.체크 > 0).sort((a, b) => b.체크 - a.체크).map(s => `
                     <div class="bg-white p-4 rounded shadow border-l-4 border-red-500">
                         <div class="flex justify-between items-center mb-3">
@@ -107,7 +104,7 @@
                             ${s.체크상세.map(c => `
                                 <li class="flex justify-between">
                                     <span><strong>${c.월}/${c.일}</strong> ${c.비고}</span>
-                                    <span class="text-xs bg-gray-100 px-2 py-0.5 rounded ml-2 whitespace-nowrap">${c.교사}</span>
+                                    <span class="text-xs bg-gray-100 px-2 py-0.5 rounded ml-2 whitespace-nowrap">${c.교사} 선생님</span>
                                 </li>`).join('')}
                         </ul>
                     </div>
