@@ -7,7 +7,6 @@
     <script src="https://cdn.tailwindcss.com"></script>
 </head>
 <body class="bg-gray-100 p-5">
-    <!-- 로그인 화면 (인증번호 제거) -->
     <div id="auth-screen" class="max-w-md mx-auto bg-white p-8 rounded-xl shadow-lg mt-10">
         <h2 class="text-2xl font-bold mb-6 text-center">생활지도 대시보드</h2>
         <select id="class-select" class="w-full p-3 border mb-4 rounded">
@@ -19,20 +18,17 @@
         <button onclick="showDashboard()" class="w-full bg-blue-600 text-white p-3 rounded font-bold hover:bg-blue-700">조회하기</button>
     </div>
 
-    <!-- 대시보드 화면 -->
     <div id="dashboard-screen" class="hidden max-w-4xl mx-auto">
         <div class="flex justify-between items-center mb-6">
             <h1 class="text-2xl font-bold" id="dashboard-title"></h1>
             <button onclick="location.reload()" class="bg-gray-500 text-white px-4 py-2 rounded">나가기</button>
         </div>
 
-        <!-- 탭 메뉴 -->
         <div class="flex border-b mb-6">
             <button onclick="showTab('list')" class="px-6 py-2 border-b-2 border-blue-600 font-bold" id="tab-list">최신순 목록</button>
             <button onclick="showTab('stats')" class="px-6 py-2 text-gray-500" id="tab-stats">학급 통계</button>
         </div>
 
-        <!-- 탭 내용 -->
         <div id="stats-view" class="hidden">
             <div id="stats-summary" class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6"></div>
             <h2 class="text-xl font-bold mb-4">학생별 진달래 체크 상세 현황 (누적순)</h2>
@@ -50,7 +46,6 @@
         function showDashboard() {
             const selected = document.getElementById("class-select").value;
             if (!selected) { alert("학급을 선택해주세요."); return; }
-            
             document.getElementById("auth-screen").classList.add("hidden");
             document.getElementById("dashboard-screen").classList.remove("hidden");
             document.getElementById("dashboard-title").innerText = selected + "반 생활지도 현황";
@@ -78,9 +73,10 @@
                 const students = {};
                 let totalChecks = 0;
                 classData.forEach(item => {
+                    const isChecked = item.진달래체크 == true || item.진달래체크 == "TRUE" || item.진달래체크 == "체크";
                     if (!students[item.학번]) students[item.학번] = { 이름: item.이름, 기록: [], 체크: 0, 체크상세: [] };
-                    students[item.학번].기록.push(item);
-                    if (item.진달래체크 == true || item.진달래체크 == "TRUE" || item.진달래체크 == "체크") {
+                    students[item.학번].기록.push({...item, isChecked});
+                    if (isChecked) {
                         students[item.학번].체크++;
                         students[item.학번].체크상세.push({ 월: item.월, 일: item.일, 비고: item.비고 || '사유 없음', 교사: item.지도교사 || '미기재' });
                         totalChecks++;
@@ -93,12 +89,11 @@
                     <div class="bg-purple-500 text-white p-4 rounded shadow">체크 인원: ${Object.values(students).filter(s=>s.체크>0).length}명</div>
                 `;
 
-                // 통계 탭: 상세 현황 (누적 체크 순)
                 details.innerHTML = Object.values(students).filter(s => s.체크 > 0).sort((a, b) => b.체크 - a.체크).map(s => `
                     <div class="bg-white p-4 rounded shadow border-l-4 border-red-500">
                         <div class="flex justify-between items-center mb-3">
                             <span class="font-bold text-lg">${s.이름}</span>
-                            <span class="bg-red-100 text-red-700 px-3 py-1 rounded-full font-bold">총 ${s.체크}회</span>
+                            <span class="bg-red-100 text-red-700 px-3 py-1 rounded-full font-bold">누적 ${s.체크}회</span>
                         </div>
                         <ul class="text-sm text-gray-700 space-y-2 border-t pt-2">
                             ${s.체크상세.map(c => `
@@ -110,7 +105,6 @@
                     </div>
                 `).join('');
 
-                // 최신순 목록
                 const sortedKeys = Object.keys(students).sort((a, b) => {
                     const recA = students[a].기록[students[a].기록.length - 1];
                     const recB = students[b].기록[students[b].기록.length - 1];
@@ -120,15 +114,37 @@
                 list.innerHTML = sortedKeys.map(id => {
                     const s = students[id];
                     const last = s.기록[s.기록.length-1];
+                    
+                    const isJindalaeMap = (s.체크 % 5 === 0 && s.체크 > 0);
+                    const remC = s.체크 % 20;
+                    const isCommitteeInterval = (remC >= 15 && remC <= 19);
+                    const isCommitteeDay = (s.체크 > 0 && remC === 0);
+
+                    let statusMsg = "";
+                    if (isCommitteeDay) {
+                        statusMsg = `<div class="text-sm font-bold text-red-700">생활교육위원회 회부</div>`;
+                    } else if (isCommitteeInterval) {
+                        statusMsg = `<div class="text-sm font-bold text-orange-600">생활교육위원회까지 ${20 - remC}회 남음</div>`;
+                    } else {
+                        statusMsg = `<div class="text-sm text-gray-500">진달래 교실까지 ${5 - (s.체크 % 5)}회 남음</div>`;
+                    }
+                    
                     return `
                         <div class="bg-white p-4 rounded-lg shadow-sm border-l-4 ${s.체크 > 0 ? 'border-red-400' : 'border-blue-400'}">
                             <div class="flex justify-between items-center mb-2">
                                 <span class="font-bold text-lg">${s.이름} (${id})</span>
-                                <span class="text-sm font-bold text-red-600">진달래 ${s.체크}회</span>
+                                <div class="text-right">
+                                    <div class="text-lg font-bold text-red-600">
+                                        진달래 체크 총 ${s.체크}회 ${isJindalaeMap ? '<span class="text-base text-red-800 font-black">(진달래교실지도)</span>' : ''}
+                                    </div>
+                                    ${statusMsg}
+                                </div>
                             </div>
                             <div class="text-sm text-gray-700">
                                 <strong>최근 기록:</strong> ${last.지도항목} (${last.월}/${last.일}, ${last.지도교사} 선생님) <br/>
-                                <span class="italic text-gray-500">사유: ${last.비고 || '없음'}</span>
+                                <span class="italic ${last.isChecked ? 'text-gray-500' : 'text-blue-600 font-bold'}">
+                                    사유: ${last.비고 || '없음'} ${last.isChecked ? '' : '(비체크/구두경고 등)'}
+                                </span>
                             </div>
                         </div>
                     `;
