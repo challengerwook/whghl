@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>생활지도 누가기록 대시보드</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-100 p-5">
+    <!-- 로그인 화면 -->
+    <div id="auth-screen" class="max-w-md mx-auto bg-white p-8 rounded-xl shadow-lg mt-10">
+        <h2 class="text-2xl font-bold mb-6 text-center">생활지도 대시보드 로그인</h2>
+        <select id="class-select" class="w-full p-3 border mb-4 rounded">
+            <option value="">학급을 선택하세요</option>
+            <script>
+                // 여기에서 value와 텍스트를 모두 설정하도록 수정했습니다.
+                for(let i=1; i<=13; i++) {
+                    document.write(`<option value="${i}">${i}반</option>`);
+                }
+            </script>
+        </select>
+        <input type="password" id="auth-code" placeholder="인증번호 4자리" class="w-full p-3 border mb-4 rounded">
+        <button onclick="checkAuth()" class="w-full bg-blue-600 text-white p-3 rounded font-bold hover:bg-blue-700">로그인</button>
+    </div>
+
+    <!-- 대시보드 화면 -->
+    <div id="dashboard-screen" class="hidden max-w-4xl mx-auto">
+        <div class="flex justify-between items-center mb-6">
+            <h1 class="text-2xl font-bold" id="dashboard-title"></h1>
+            <button onclick="location.reload()" class="bg-gray-500 text-white px-4 py-2 rounded">로그아웃</button>
+        </div>
+        <div id="student-list" class="grid gap-4"></div>
+    </div>
+
+    <script>
+        const API_URL = "https://script.google.com/macros/s/AKfycbyp73QiiXfUjiXxO7Elc3UzR9GHZ4eVQ6l7aivz5kUNOT8pqKcnWfbJBe69G_sL8qrZ/exec";
+        const authData = { "1":"8291", "2":"5634", "3":"9172", "4":"3048", "5":"2469", "6":"7715", "7":"1943", "8":"4720", "9":"1085", "10":"6394", "11":"7256", "12":"5103", "13":"3827" };
+
+        function checkAuth() {
+            const selectEl = document.getElementById("class-select");
+            const selected = selectEl.value;
+            const code = document.getElementById("auth-code").value;
+            
+            if (selected === "") {
+                alert("학급을 먼저 선택해주세요.");
+                return;
+            }
+
+            if (authData[selected] === code) {
+                document.getElementById("auth-screen").classList.add("hidden");
+                document.getElementById("dashboard-screen").classList.remove("hidden");
+                document.getElementById("dashboard-title").innerText = selected + "반 생활지도 현황";
+                loadData(parseInt(selected));
+            } else { 
+                alert("인증번호가 올바르지 않습니다."); 
+            }
+        }
+
+        async function loadData(targetClass) {
+            const list = document.getElementById('student-list');
+            list.innerHTML = "<p class='text-center p-10'>데이터를 불러오는 중입니다...</p>";
+            
+            try {
+                const response = await fetch(API_URL);
+                const data = await response.json();
+                
+                // 학급 필터링
+                const classData = data.filter(item => parseInt(item.반) === targetClass);
+                
+                if (classData.length === 0) {
+                    list.innerHTML = "<p class='text-center'>해당 반의 기록이 없습니다.</p>";
+                    return;
+                }
+                
+                const students = {};
+                classData.forEach(item => {
+                    if (!students[item.학번]) students[item.학번] = { 이름: item.이름, 기록: [], 체크: 0 };
+                    students[item.학번].기록.push(item);
+                    if (item.진달래체크 == true || item.진달래체크 == "TRUE" || item.진달래체크 == "체크") students[item.학번].체크++;
+                });
+
+                // 최근 기록순 정렬 (학생별 마지막 데이터의 월/일 기준)
+                const sortedKeys = Object.keys(students).sort((a, b) => {
+                    const recA = students[a].기록[students[a].기록.length - 1];
+                    const recB = students[b].기록[students[b].기록.length - 1];
+                    return (recB.월 * 100 + recB.일) - (recA.월 * 100 + recA.일);
+                });
+
+                list.innerHTML = sortedKeys.map(id => {
+                    const recs = students[id].기록;
+                    const lastRec = recs[recs.length - 1];
+                    return `
+                        <div class="bg-white p-6 rounded-lg shadow-md border-l-4 border-blue-500">
+                            <div class="flex justify-between items-center mb-2">
+                                <h2 class="text-xl font-bold">${students[id].이름} (${id})</h2>
+                                <span class="text-sm bg-blue-100 px-3 py-1 rounded">총 ${recs.length}회 기록 / 진달래 ${students[id].체크}회</span>
+                            </div>
+                            <div class="text-sm text-gray-600">
+                                최근 기록: ${lastRec.지도항목} (${lastRec.월}월 ${lastRec.일}일)
+                            </div>
+                        </div>
+                    `;
+                }).join('');
+            } catch (e) {
+                list.innerHTML = "<p class='text-center text-red-500'>데이터를 불러오는 데 실패했습니다. Apps Script 배포를 다시 확인해주세요.</p>";
+            }
+        }
+    </script>
+</body>
+</html>
