@@ -36,8 +36,8 @@
         <!-- 탭 내용 -->
         <div id="stats-view" class="hidden">
             <div id="stats-summary" class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6"></div>
-            <h2 class="text-xl font-bold mb-4">진달래 체크 사유 요약</h2>
-            <div id="stats-details" class="bg-white p-4 rounded shadow"></div>
+            <h2 class="text-xl font-bold mb-4">진달래 체크 빈도 상위 학생</h2>
+            <div id="stats-details" class="grid gap-4"></div>
         </div>
         
         <div id="list-view">
@@ -81,10 +81,11 @@
                 const students = {};
                 let totalChecks = 0;
                 classData.forEach(item => {
-                    if (!students[item.학번]) students[item.학번] = { 이름: item.이름, 기록: [], 체크: 0 };
+                    if (!students[item.학번]) students[item.학번] = { 이름: item.이름, 기록: [], 체크: 0, 체크사유: [] };
                     students[item.학번].기록.push(item);
                     if (item.진달래체크 == true || item.진달래체크 == "TRUE" || item.진달래체크 == "체크") {
                         students[item.학번].체크++;
+                        students[item.학번].체크사유.push(item.비고 || '사유 없음');
                         totalChecks++;
                     }
                 });
@@ -95,10 +96,19 @@
                     <div class="bg-purple-500 text-white p-4 rounded shadow">체크 인원: ${Object.values(students).filter(s=>s.체크>0).length}명</div>
                 `;
 
-                // 통계 탭: 사유 요약
-                details.innerHTML = classData
-                    .filter(item => item.진달래체크 == true || item.진달래체크 == "TRUE" || item.진달래체크 == "체크")
-                    .map(item => `<div class="border-b py-2"><span class="font-bold">${item.이름}:</span> ${item.비고 || '사유 없음'}</div>`).join('');
+                // 통계 탭: 체크 횟수 많은 순 정렬
+                const sortedStats = Object.values(students).filter(s => s.체크 > 0).sort((a, b) => b.체크 - a.체크);
+                details.innerHTML = sortedStats.map(s => `
+                    <div class="bg-white p-4 rounded shadow border-l-4 border-red-500">
+                        <div class="flex justify-between">
+                            <span class="font-bold text-lg">${s.이름}</span>
+                            <span class="text-red-600 font-bold">총 ${s.체크}회 체크</span>
+                        </div>
+                        <ul class="text-sm mt-2 text-gray-600 list-disc ml-4">
+                            ${s.체크사유.map(reason => `<li>${reason}</li>`).join('')}
+                        </ul>
+                    </div>
+                `).join('');
 
                 const sortedKeys = Object.keys(students).sort((a, b) => {
                     const recA = students[a].기록[students[a].기록.length - 1];
