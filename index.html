@@ -85,7 +85,7 @@
                     students[item.학번].기록.push(item);
                     if (item.진달래체크 == true || item.진달래체크 == "TRUE" || item.진달래체크 == "체크") {
                         students[item.학번].체크++;
-                        students[item.학번].체크상세.push({ 월: item.월, 일: item.일, 비고: item.비고 || '사유 없음' });
+                        students[item.학번].체크상세.push({ 월: item.월, 일: item.일, 비고: item.비고 || '사유 없음', 교사: item.지도교사 || '미기재' });
                         totalChecks++;
                     }
                 });
@@ -96,21 +96,24 @@
                     <div class="bg-purple-500 text-white p-4 rounded shadow">체크 인원: ${Object.values(students).filter(s=>s.체크>0).length}명</div>
                 `;
 
-                // 통계 탭: 체크 횟수 많은 순 정렬
-                const sortedStats = Object.values(students).filter(s => s.체크 > 0).sort((a, b) => b.체크 - a.체크);
-                
-                details.innerHTML = sortedStats.map(s => `
+                // 통계 탭: 상세 현황
+                details.innerHTML = Object.values(students).filter(s => s.체크 > 0).sort((a, b) => b.체크 - a.체크).map(s => `
                     <div class="bg-white p-4 rounded shadow border-l-4 border-red-500">
                         <div class="flex justify-between items-center mb-3">
                             <span class="font-bold text-lg">${s.이름}</span>
                             <span class="bg-red-100 text-red-700 px-3 py-1 rounded-full font-bold">총 ${s.체크}회</span>
                         </div>
-                        <ul class="text-sm text-gray-700 space-y-1 border-t pt-2">
-                            ${s.체크상세.map(c => `<li class="flex"><span class="w-16 font-semibold">${c.월}/${c.일}</span><span>${c.비고}</span></li>`).join('')}
+                        <ul class="text-sm text-gray-700 space-y-2 border-t pt-2">
+                            ${s.체크상세.map(c => `
+                                <li class="flex justify-between">
+                                    <span><strong>${c.월}/${c.일}</strong> ${c.비고}</span>
+                                    <span class="text-xs bg-gray-100 px-2 py-0.5 rounded ml-2 whitespace-nowrap">${c.교사}</span>
+                                </li>`).join('')}
                         </ul>
                     </div>
                 `).join('');
 
+                // 최신순 목록
                 const sortedKeys = Object.keys(students).sort((a, b) => {
                     const recA = students[a].기록[students[a].기록.length - 1];
                     const recB = students[b].기록[students[b].기록.length - 1];
@@ -127,7 +130,7 @@
                                 <span class="text-sm font-bold text-red-600">진달래 ${s.체크}회</span>
                             </div>
                             <div class="text-sm text-gray-700">
-                                <strong>최근 기록:</strong> ${last.지도항목} (${last.월}/${last.일}) <br/>
+                                <strong>최근 기록:</strong> ${last.지도항목} (${last.월}/${last.일}, ${last.지도교사} 선생님) <br/>
                                 <span class="italic text-gray-500">사유: ${last.비고 || '없음'}</span>
                             </div>
                         </div>
