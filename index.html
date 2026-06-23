@@ -36,7 +36,7 @@
         <!-- 탭 내용 -->
         <div id="stats-view" class="hidden">
             <div id="stats-summary" class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6"></div>
-            <h2 class="text-xl font-bold mb-4">진달래 체크 빈도 상위 학생</h2>
+            <h2 class="text-xl font-bold mb-4">학생별 진달래 체크 상세 현황 (누적순)</h2>
             <div id="stats-details" class="grid gap-4"></div>
         </div>
         
@@ -81,11 +81,11 @@
                 const students = {};
                 let totalChecks = 0;
                 classData.forEach(item => {
-                    if (!students[item.학번]) students[item.학번] = { 이름: item.이름, 기록: [], 체크: 0, 체크사유: [] };
+                    if (!students[item.학번]) students[item.학번] = { 이름: item.이름, 기록: [], 체크: 0, 체크상세: [] };
                     students[item.학번].기록.push(item);
                     if (item.진달래체크 == true || item.진달래체크 == "TRUE" || item.진달래체크 == "체크") {
                         students[item.학번].체크++;
-                        students[item.학번].체크사유.push(item.비고 || '사유 없음');
+                        students[item.학번].체크상세.push({ 월: item.월, 일: item.일, 비고: item.비고 || '사유 없음' });
                         totalChecks++;
                     }
                 });
@@ -98,14 +98,15 @@
 
                 // 통계 탭: 체크 횟수 많은 순 정렬
                 const sortedStats = Object.values(students).filter(s => s.체크 > 0).sort((a, b) => b.체크 - a.체크);
+                
                 details.innerHTML = sortedStats.map(s => `
                     <div class="bg-white p-4 rounded shadow border-l-4 border-red-500">
-                        <div class="flex justify-between">
+                        <div class="flex justify-between items-center mb-3">
                             <span class="font-bold text-lg">${s.이름}</span>
-                            <span class="text-red-600 font-bold">총 ${s.체크}회 체크</span>
+                            <span class="bg-red-100 text-red-700 px-3 py-1 rounded-full font-bold">총 ${s.체크}회</span>
                         </div>
-                        <ul class="text-sm mt-2 text-gray-600 list-disc ml-4">
-                            ${s.체크사유.map(reason => `<li>${reason}</li>`).join('')}
+                        <ul class="text-sm text-gray-700 space-y-1 border-t pt-2">
+                            ${s.체크상세.map(c => `<li class="flex"><span class="w-16 font-semibold">${c.월}/${c.일}</span><span>${c.비고}</span></li>`).join('')}
                         </ul>
                     </div>
                 `).join('');
