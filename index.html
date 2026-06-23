@@ -27,18 +27,26 @@
             <button onclick="location.reload()" class="bg-gray-500 text-white px-4 py-2 rounded">로그아웃</button>
         </div>
 
-        <!-- 통계 요약 카드 -->
-        <div id="stats-summary" class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-            <!-- 통계 데이터가 삽입됨 -->
+        <!-- 탭 메뉴 -->
+        <div class="flex border-b mb-6">
+            <button onclick="showTab('list')" class="px-6 py-2 border-b-2 border-blue-600 font-bold" id="tab-list">최신순 목록</button>
+            <button onclick="showTab('stats')" class="px-6 py-2 text-gray-500" id="tab-stats">학급 통계</button>
         </div>
 
-        <h2 class="text-xl font-bold mb-4">학생별 상세 현황</h2>
-        <div id="student-list" class="grid gap-4"></div>
+        <!-- 탭 내용 -->
+        <div id="stats-view" class="hidden">
+            <div id="stats-summary" class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6"></div>
+        </div>
+        
+        <div id="list-view">
+            <div id="student-list" class="grid gap-4"></div>
+        </div>
     </div>
 
     <script>
         const API_URL = "https://script.google.com/macros/s/AKfycbyp73QiiXfUjiXxO7Elc3UzR9GHZ4eVQ6l7aivz5kUNOT8pqKcnWfbJBe69G_sL8qrZ/exec";
         const authData = { "1":"8291", "2":"5634", "3":"9172", "4":"3048", "5":"2469", "6":"7715", "7":"1943", "8":"4720", "9":"1085", "10":"6394", "11":"7256", "12":"5103", "13":"3827" };
+        let currentStudents = [];
 
         function checkAuth() {
             const selected = document.getElementById("class-select").value;
@@ -49,6 +57,14 @@
                 document.getElementById("dashboard-title").innerText = selected + "반 생활지도 현황";
                 loadData(parseInt(selected));
             } else { alert("인증번호가 틀렸습니다."); }
+        }
+
+        function showTab(tab) {
+            const isList = tab === 'list';
+            document.getElementById('list-view').classList.toggle('hidden', !isList);
+            document.getElementById('stats-view').classList.toggle('hidden', isList);
+            document.getElementById('tab-list').className = isList ? "px-6 py-2 border-b-2 border-blue-600 font-bold" : "px-6 py-2 text-gray-500";
+            document.getElementById('tab-stats').className = !isList ? "px-6 py-2 border-b-2 border-blue-600 font-bold" : "px-6 py-2 text-gray-500";
         }
 
         async function loadData(targetClass) {
@@ -71,29 +87,31 @@
                     }
                 });
 
-                // 통계 카드 생성
+                // 통계 카드
                 stats.innerHTML = `
                     <div class="bg-blue-500 text-white p-4 rounded shadow">학급 총 기록: ${classData.length}회</div>
                     <div class="bg-green-500 text-white p-4 rounded shadow">진달래 총 체크: ${totalChecks}회</div>
                     <div class="bg-purple-500 text-white p-4 rounded shadow">체크 인원: ${Object.values(students).filter(s=>s.체크>0).length}명</div>
                 `;
 
-                // 정렬: 체크 많은 순 -> 동일할 경우 기록 많은 순
+                // 최신순 정렬 (월, 일 기준 내림차순)
                 const sortedKeys = Object.keys(students).sort((a, b) => {
-                    return students[b].체크 - students[a].체크 || students[b].기록.length - students[a].기록.length;
+                    const recA = students[a].기록[students[a].기록.length - 1];
+                    const recB = students[b].기록[students[b].기록.length - 1];
+                    return (recB.월 * 100 + recB.일) - (recA.월 * 100 + recA.일);
                 });
 
                 list.innerHTML = sortedKeys.map(id => {
                     const s = students[id];
+                    const last = s.기록[s.기록.length-1];
                     return `
                         <div class="bg-white p-4 rounded-lg shadow-sm border-l-4 ${s.체크 > 0 ? 'border-red-400' : 'border-blue-400'} flex justify-between items-center">
                             <div>
                                 <span class="font-bold text-lg">${s.이름}</span> (${id})
-                                <p class="text-sm text-gray-500">최근 기록: ${s.기록[s.기록.length-1].지도항목}</p>
+                                <p class="text-sm text-gray-500">최근: ${last.지도항목} (${last.월}/${last.일})</p>
                             </div>
                             <div class="text-right">
                                 <p class="font-bold text-red-600">진달래 ${s.체크}회</p>
-                                <p class="text-xs text-gray-400">총 ${s.기록.length}회 기록</p>
                             </div>
                         </div>
                     `;
