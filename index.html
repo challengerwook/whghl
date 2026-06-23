@@ -13,10 +13,7 @@
         <select id="class-select" class="w-full p-3 border mb-4 rounded">
             <option value="">학급을 선택하세요</option>
             <script>
-                // 여기에서 value와 텍스트를 모두 설정하도록 수정했습니다.
-                for(let i=1; i<=13; i++) {
-                    document.write(`<option value="${i}">${i}반</option>`);
-                }
+                for(let i=1; i<=13; i++) document.write(`<option value="${i}">${i}반</option>`);
             </script>
         </select>
         <input type="password" id="auth-code" placeholder="인증번호 4자리" class="w-full p-3 border mb-4 rounded">
@@ -29,6 +26,13 @@
             <h1 class="text-2xl font-bold" id="dashboard-title"></h1>
             <button onclick="location.reload()" class="bg-gray-500 text-white px-4 py-2 rounded">로그아웃</button>
         </div>
+
+        <!-- 통계 요약 카드 -->
+        <div id="stats-summary" class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+            <!-- 통계 데이터가 삽입됨 -->
+        </div>
+
+        <h2 class="text-xl font-bold mb-4">학생별 상세 현황</h2>
         <div id="student-list" class="grid gap-4"></div>
     </div>
 
@@ -37,73 +41,64 @@
         const authData = { "1":"8291", "2":"5634", "3":"9172", "4":"3048", "5":"2469", "6":"7715", "7":"1943", "8":"4720", "9":"1085", "10":"6394", "11":"7256", "12":"5103", "13":"3827" };
 
         function checkAuth() {
-            const selectEl = document.getElementById("class-select");
-            const selected = selectEl.value;
+            const selected = document.getElementById("class-select").value;
             const code = document.getElementById("auth-code").value;
-            
-            if (selected === "") {
-                alert("학급을 먼저 선택해주세요.");
-                return;
-            }
-
             if (authData[selected] === code) {
                 document.getElementById("auth-screen").classList.add("hidden");
                 document.getElementById("dashboard-screen").classList.remove("hidden");
                 document.getElementById("dashboard-title").innerText = selected + "반 생활지도 현황";
                 loadData(parseInt(selected));
-            } else { 
-                alert("인증번호가 올바르지 않습니다."); 
-            }
+            } else { alert("인증번호가 틀렸습니다."); }
         }
 
         async function loadData(targetClass) {
             const list = document.getElementById('student-list');
-            list.innerHTML = "<p class='text-center p-10'>데이터를 불러오는 중입니다...</p>";
+            const stats = document.getElementById('stats-summary');
             
             try {
                 const response = await fetch(API_URL);
                 const data = await response.json();
-                
-                // 학급 필터링
                 const classData = data.filter(item => parseInt(item.반) === targetClass);
                 
-                if (classData.length === 0) {
-                    list.innerHTML = "<p class='text-center'>해당 반의 기록이 없습니다.</p>";
-                    return;
-                }
-                
                 const students = {};
+                let totalChecks = 0;
                 classData.forEach(item => {
                     if (!students[item.학번]) students[item.학번] = { 이름: item.이름, 기록: [], 체크: 0 };
                     students[item.학번].기록.push(item);
-                    if (item.진달래체크 == true || item.진달래체크 == "TRUE" || item.진달래체크 == "체크") students[item.학번].체크++;
+                    if (item.진달래체크 == true || item.진달래체크 == "TRUE" || item.진달래체크 == "체크") {
+                        students[item.학번].체크++;
+                        totalChecks++;
+                    }
                 });
 
-                // 최근 기록순 정렬 (학생별 마지막 데이터의 월/일 기준)
+                // 통계 카드 생성
+                stats.innerHTML = `
+                    <div class="bg-blue-500 text-white p-4 rounded shadow">학급 총 기록: ${classData.length}회</div>
+                    <div class="bg-green-500 text-white p-4 rounded shadow">진달래 총 체크: ${totalChecks}회</div>
+                    <div class="bg-purple-500 text-white p-4 rounded shadow">체크 인원: ${Object.values(students).filter(s=>s.체크>0).length}명</div>
+                `;
+
+                // 정렬: 체크 많은 순 -> 동일할 경우 기록 많은 순
                 const sortedKeys = Object.keys(students).sort((a, b) => {
-                    const recA = students[a].기록[students[a].기록.length - 1];
-                    const recB = students[b].기록[students[b].기록.length - 1];
-                    return (recB.월 * 100 + recB.일) - (recA.월 * 100 + recA.일);
+                    return students[b].체크 - students[a].체크 || students[b].기록.length - students[a].기록.length;
                 });
 
                 list.innerHTML = sortedKeys.map(id => {
-                    const recs = students[id].기록;
-                    const lastRec = recs[recs.length - 1];
+                    const s = students[id];
                     return `
-                        <div class="bg-white p-6 rounded-lg shadow-md border-l-4 border-blue-500">
-                            <div class="flex justify-between items-center mb-2">
-                                <h2 class="text-xl font-bold">${students[id].이름} (${id})</h2>
-                                <span class="text-sm bg-blue-100 px-3 py-1 rounded">총 ${recs.length}회 기록 / 진달래 ${students[id].체크}회</span>
+                        <div class="bg-white p-4 rounded-lg shadow-sm border-l-4 ${s.체크 > 0 ? 'border-red-400' : 'border-blue-400'} flex justify-between items-center">
+                            <div>
+                                <span class="font-bold text-lg">${s.이름}</span> (${id})
+                                <p class="text-sm text-gray-500">최근 기록: ${s.기록[s.기록.length-1].지도항목}</p>
                             </div>
-                            <div class="text-sm text-gray-600">
-                                최근 기록: ${lastRec.지도항목} (${lastRec.월}월 ${lastRec.일}일)
+                            <div class="text-right">
+                                <p class="font-bold text-red-600">진달래 ${s.체크}회</p>
+                                <p class="text-xs text-gray-400">총 ${s.기록.length}회 기록</p>
                             </div>
                         </div>
                     `;
                 }).join('');
-            } catch (e) {
-                list.innerHTML = "<p class='text-center text-red-500'>데이터를 불러오는 데 실패했습니다. Apps Script 배포를 다시 확인해주세요.</p>";
-            }
+            } catch (e) { list.innerHTML = "<p class='text-center'>데이터 로드 실패</p>"; }
         }
     </script>
 </body>
